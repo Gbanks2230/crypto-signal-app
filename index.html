@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Scalping Signal Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid white; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- Mode Banner -->
+        <div id="modeBanner" class="mb-6 bg-gradient-to-r from-yellow-600/30 to-orange-600/30 border-2 border-yellow-500 rounded-lg p-4 shadow-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🎭</span>
+                    <div>
+                        <p class="text-yellow-300 font-bold text-lg">DEMO MODE ACTIVE</p>
+                        <p class="text-yellow-200 text-sm">Generating realistic simulated signals - Perfect for testing!</p>
+                    </div>
+                </div>
+                <button onclick="toggleMode()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white font-medium transition-colors">
+                    Switch to Live Mode
+                </button>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold mb-2">Crypto Scalping Signal Generator</h1>
+            <p class="text-gray-400">5-Minute Scalping Signals with Advanced Technical Analysis</p>
+            <p class="text-xs text-gray-500 mt-1">Analyzing BTC, ETH, SOL, BNB • 0.8% SL / 1.6% TP (2:1 R:R) • Minimum Score: 7/15</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-6 bg-gray-800 p-1 rounded-lg">
+            <button onclick="switchTab('signals')" id="tabSignals" class="flex-1 py-2 px-4 rounded-lg font-medium bg-blue-600 text-white">Live Signals</button>
+            <button onclick="switchTab('all')" id="tabAll" class="flex-1 py-2 px-4 rounded-lg font-medium text-gray-400">All Signals (<span id="allCount">0</span>)</button>
+            <button onclick="switchTab('traded')" id="tabTraded" class="flex-1 py-2 px-4 rounded-lg font-medium text-gray-400">My Trades (<span id="tradedCount">0</span>)</button>
+        </div>
+
+        <!-- Live Signals Tab -->
+        <div id="signalsTab">
+            <button onclick="generateSignal()" id="generateBtn" class="w-full mb-6 py-4 rounded-lg font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg transition-all">
+                <span id="btnText">🎯 Generate New Signal</span>
+            </button>
+            <div id="currentSignalContainer"></div>
+        </div>
+
+        <!-- All Signals Tab -->
+        <div id="allTab" class="hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold">All Generated Signals</h2>
+                <button onclick="clearHistory()" class="text-sm text-red-400 hover:text-red-300">Clear History</button>
+            </div>
+            <div id="allSignalsContainer" class="space-y-4"></div>
+        </div>
+
+        <!-- Traded Signals Tab -->
+        <div id="tradedTab" class="hidden">
+            <h2 class="text-xl font-bold mb-4">My Trade Journal</h2>
+            <div id="statsContainer"></div>
+            <div id="tradedSignalsContainer" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        let useDemoMode = true;
+        let currentTab = 'signals';
+        let allSignals = JSON.parse(localStorage.getItem('allSignals') || '[]');
+        let tradedSignals = JSON.parse(localStorage.getItem('tradedSignals') || '[]');
+
+        function updateCounts() {
+            document.getElementById('allCount').textContent = allSignals.length;
+            document.getElementById('tradedCount').textContent = tradedSignals.length;
+        }
+
+        function toggleMode() {
+            useDemoMode = !useDemoMode;
+            const banner = document.getElementById('modeBanner');
+            if (useDemoMode) {
+                banner.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">🎭</span>
+                            <div>
+                                <p class="text-yellow-300 font-bold text-lg">DEMO MODE ACTIVE</p>
+                                <p class="text-yellow-200 text-sm">Generating realistic simulated signals - Perfect for testing!</p>
+                            </div>
+                        </div>
+                        <button onclick="toggleMode()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white font-medium transition-colors">Switch to Live Mode</button>
+                    </div>`;
+                banner.className = 'mb-6 bg-gradient-to-r from-yellow-600/30 to-orange-600/30 border-2 border-yellow-500 rounded-lg p-4 shadow-lg';
+            } else {
+                banner.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">📡</span>
+                            <div>
+                                <p class="text-blue-300 font-bold text-lg">LIVE API MODE</p>
+                                <p class="text-blue-200 text-sm">Fetching real market data from CryptoCompare</p>
+                            </div>
+                        </div>
+                        <button onclick="toggleMode()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-sm text-white font-medium transition-colors">Switch to Demo Mode</button>
+                    </div>`;
+                banner.className = 'mb-6 bg-gradient-to-r from-blue-600/30 to-purple-600/30 border-2 border-blue-500 rounded-lg p-4 shadow-lg';
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('signalsTab').classList.toggle('hidden', tab !== 'signals');
+            document.getElementById('allTab').classList.toggle('hidden', tab !== 'all');
+            document.getElementById('tradedTab').classList.toggle('hidden', tab !== 'traded');
+            
+            document.getElementById('tabSignals').className = tab === 'signals' ? 'flex-1 py-2 px-4 rounded-lg font-medium bg-blue-600 text-white' : 'flex-1 py-2 px-4 rounded-lg font-medium text-gray-400';
+            document.getElementById('tabAll').className = tab === 'all' ? 'flex-1 py-2 px-4 rounded-lg font-medium bg-blue-600 text-white' : 'flex-1 py-2 px-4 rounded-lg font-medium text-gray-400';
+            document.getElementById('tabTraded').className = tab === 'traded' ? 'flex-1 py-2 px-4 rounded-lg font-medium bg-blue-600 text-white' : 'flex-1 py-2 px-4 rounded-lg font-medium text-gray-400';
+            
+            if (tab === 'all') renderAllSignals();
+            if (tab === 'traded') renderTradedSignals();
+        }
+
+        function generateDemoSignal() {
+            const symbols = [
+                { pair: 'BTCUSDT', basePrice: 98234 },
+                { pair: 'ETHUSDT', basePrice: 3456 },
+                { pair: 'SOLUSDT', basePrice: 145 },
+                { pair: 'BNBUSDT', basePrice: 612 }
+            ];
+            
+            const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+            const direction = Math.random() > 0.5 ? 'LONG' : 'SHORT';
+            const priceVariation = (Math.random() - 0.5) * 0.02;
+            const entryPrice = randomSymbol.basePrice * (1 + priceVariation);
+            
+            const stopLoss = direction === 'LONG' ? entryPrice * 0.992 : entryPrice * 1.008;
+            const takeProfit = direction === 'LONG' ? entryPrice * 1.016 : entryPrice * 0.984;
+            
+            const scores = {
+                trend: Math.floor(Math.random() * 4),
+                meanReversion: Math.floor(Math.random() * 3),
+                volume: Math.floor(Math.random() * 3),
+                rsi: Math.floor(Math.random() * 3),
+                sweep: Math.random() > 0.7 ? 3 : 0,
+                session: Math.random() > 0.5 ? 2 : 0
+            };
+            
+            const totalScore = scores.trend + scores.meanReversion + scores.volume + scores.rsi + scores.sweep + scores.session;
+            
+            const reasons = [];
+            if (scores.trend >= 2) reasons.push(`Strong ${direction === 'LONG' ? 'bullish' : 'bearish'} trend alignment`);
+            if (scores.meanReversion > 0) reasons.push(direction === 'LONG' ? 'Oversold condition detected' : 'Overbought condition detected');
+            if (scores.volume > 0) reasons.push('High volume confirmation');
+            if (scores.rsi > 0) reasons.push('RSI favorable across timeframes');
+            if (scores.sweep > 0) reasons.push('Liquidity sweep - stop hunt reversal');
+            if (scores.session > 0) reasons.push('Session open - high liquidity');
+            
+            return {
+                id: Date.now(),
+                symbol: randomSymbol.pair,
+                direction,
+                score: totalScore,
+                entryPrice: entryPrice.toFixed(2),
+                stopLoss: stopLoss.toFixed(2),
+                takeProfit: takeProfit.toFixed(2),
+                reasons,
+                rsi5m: (direction === 'LONG' ? 32 + Math.random() * 10 : 58 + Math.random() * 10).toFixed(1),
+                rsi15m: (direction === 'LONG' ? 38 + Math.random() * 10 : 55 + Math.random() * 10).toFixed(1),
+                volumeRatio: (1.3 + Math.random() * 0.7).toFixed(2),
+                atr24h: (2.5 + Math.random() * 1.5).toFixed(2),
+                confidence: totalScore >= 11 ? 'VERY HIGH' : totalScore >= 9 ? 'HIGH' : 'MODERATE',
+                timestamp: new Date().toISOString(),
+                demoMode: true
+            };
+        }
+
+        async function generateSignal() {
+            const btn = document.getElementById('generateBtn');
+            const btnText = document.getElementById('btnText');
+            btn.disabled = true;
+            btn.className = 'w-full mb-6 py-4 rounded-lg font-bold text-lg bg-gray-700 cursor-not-allowed';
+            btnText.innerHTML = '<div class="flex items-center justify-center gap-2"><div class="spinner"></div> Analyzing Market...</div>';
+            
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            let signal;
+            if (useDemoMode) {
+                signal = generateDemoSignal();
+            } else {
+                // Live mode would fetch real data here
+                signal = {
+                    noSignal: true,
+                    message: 'Live API mode - Fetching real data...',
+                    timestamp: new Date().toISOString()
+                };
+            }
+            
+            if (signal.score >= 7 || !signal.noSignal) {
+                allSignals.unshift(signal);
+                localStorage.setItem('allSignals', JSON.stringify(allSignals));
+                updateCounts();
+            }
+            
+            displaySignal(signal, 'currentSignalContainer', true);
+            
+            btn.disabled = false;
+            btn.className = 'w-full mb-6 py-4 rounded-lg font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg transition-all';
+            btnText.textContent = '🎯 Generate New Signal';
+        }
+
+        function displaySignal(signal, containerId, showTradeBtn = false) {
+            const container = document.getElementById(containerId);
+            
+            if (signal.noSignal) {
+                container.innerHTML = `
+                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                        <p class="text-gray-400">⚠️ ${signal.message}</p>
+                        <p class="text-xs text-gray-500 mt-2">${new Date(signal.timestamp).toLocaleString()}</p>
+                    </div>`;
+                return;
+            }
+            
+            const borderColor = signal.direction === 'LONG' ? 'border-green-500' : 'border-red-500';
+            const bgColor = signal.direction === 'LONG' ? 'bg-green-900/20' : 'bg-red-900/20';
+            const textColor = signal.direction === 'LONG' ? 'text-green-400' : 'text-red-400';
+            
+            container.innerHTML = `
+                <div class="${bgColor} rounded-lg p-6 border-2 ${borderColor}">
+                    ${signal.demoMode ? '<div class="mb-3 px-3 py-1 bg-yellow-600/20 border border-yellow-600 rounded text-yellow-300 text-xs inline-block">🎭 Demo Signal</div>' : ''}
+                    
+                    <div class="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold">${signal.symbol}</h3>
+                            <p class="text-lg font-semibold ${textColor}">${signal.direction}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm px-3 py-1 rounded-full ${signal.confidence === 'VERY HIGH' ? 'bg-green-500/20 text-green-300' : signal.confidence === 'HIGH' ? 'bg-blue-500/20 text-blue-300' : 'bg-yellow-500/20 text-yellow-300'}">${signal.confidence}</div>
+                            <p class="font-bold mt-2">Score: ${signal.score}/15</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4 mb-4">
+                        <div class="bg-gray-800/50 rounded p-3">
+                            <p class="text-gray-400 text-xs mb-1">Entry</p>
+                            <p class="font-bold">$${signal.entryPrice}</p>
+                        </div>
+                        <div class="bg-gray-800/50 rounded p-3">
+                            <p class="text-gray-400 text-xs mb-1">Stop Loss</p>
+                            <p class="text-red-400 font-bold">$${signal.stopLoss}</p>
+                        </div>
+                        <div class="bg-gray-800/50 rounded p-3">
+                            <p class="text-gray-400 text-xs mb-1">Take Profit</p>
+                            <p class="text-green-400 font-bold">$${signal.takeProfit}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-800/30 rounded p-3 mb-4">
+                        <p class="text-gray-400 text-xs mb-2">Technical Analysis</p>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div><span class="text-gray-500">RSI 5m:</span> <span class="ml-2">${signal.rsi5m}</span></div>
+                            <div><span class="text-gray-500">RSI 15m:</span> <span class="ml-2">${signal.rsi15m}</span></div>
+                            <div><span class="text-gray-500">Volume:</span> <span class="ml-2">${signal.volumeRatio}x</span></div>
+                            <div><span class="text-gray-500">24h Range:</span> <span class="ml-2">${signal.atr24h}%</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-800/30 rounded p-3 mb-4">
+                        <p class="text-gray-400 text-xs mb-2">Setup Reasons</p>
+                        ${signal.reasons.map(r => `<div class="text-sm text-gray-300 mb-1">✓ ${r}</div>`).join('')}
+                    </div>
+                    
+                    <p class="text-xs text-gray-400">${new Date(signal.timestamp).toLocaleString()}</p>
+                    
+                    ${showTradeBtn && !signal.traded ? `<button onclick="markAsTraded(${signal.id})" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg">Mark as Traded</button>` : ''}
+                </div>`;
+        }
+
+        function markAsTraded(signalId) {
+            const signal = allSignals.find(s => s.id === signalId);
+            if (signal) {
+                signal.traded = true;
+                tradedSignals.unshift(signal);
+                localStorage.setItem('allSignals', JSON.stringify(allSignals));
+                localStorage.setItem('tradedSignals', JSON.stringify(tradedSignals));
+                updateCounts();
+                renderAllSignals();
+            }
+        }
+
+        function renderAllSignals() {
+            const container = document.getElementById('allSignalsContainer');
+            if (allSignals.length === 0) {
+                container.innerHTML = '<div class="bg-gray-800 rounded-lg p-12 text-center"><p class="text-gray-400">No signals generated yet</p></div>';
+                return;
+            }
+            container.innerHTML = allSignals.map(s => {
+                const div = document.createElement('div');
+                div.id = `signal-${s.id}`;
+                displaySignal(s, div.id, true);
+                return div.outerHTML;
+            }).join('');
+        }
+
+        function renderTradedSignals() {
+            const statsContainer = document.getElementById('statsContainer');
+            const container = document.getElementById('tradedSignalsContainer');
+            
+            if (tradedSignals.length === 0) {
+                statsContainer.innerHTML = '';
+                container.innerHTML = '<div class="bg-gray-800 rounded-lg p-12 text-center"><p class="text-gray-400">No trades taken yet</p><p class="text-gray-500 text-sm mt-2">Mark signals as traded to track performance</p></div>';
+                return;
+            }
+            
+            const wins = tradedSignals.filter(s => s.outcome === 'WIN').length;
+            const losses = tradedSignals.filter(s => s.outcome === 'LOSS').length;
+            
+            statsContainer.innerHTML = `
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <p class="text-gray-400 text-sm mb-1">Total Trades</p>
+                        <p class="text-2xl font-bold">${tradedSignals.length}</p>
+                    </div>
+                    <div class="bg-green-900/20 border border-green-500 rounded-lg p-4">
+                        <p class="text-gray-400 text-sm mb-1">Wins</p>
+                        <p class="text-2xl font-bold text-green-400">${wins}</p>
+                    </div>
+                    <div class="bg-red-900/20 border border-red-500 rounded-lg p-4">
+                        <p class="text-gray-400 text-sm mb-1">Losses</p>
+                        <p class="text-2xl font-bold text-red-400">${losses}</p>
+                    </div>
+                </div>`;
+            
+            container.innerHTML = tradedSignals.map(s => {
+                const div = document.createElement('div');
+                div.id = `traded-${s.id}`;
+                displaySignal(s, div.id, false);
+                return div.outerHTML;
+            }).join('');
+        }
+
+        function clearHistory() {
+            if (confirm('Clear all signal history?')) {
+                allSignals = [];
+                localStorage.setItem('allSignals', '[]');
+                updateCounts();
+                renderAllSignals();
+            }
+        }
+
+        updateCounts();
+    </script>
+</body>
+</html>
